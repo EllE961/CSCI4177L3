@@ -58,7 +58,7 @@ function Products() {
   // Handle Update Product
   const handleUpdateProduct = async (values, { setSubmitting, resetForm }) => {
     try {
-      await dispatch(updateProduct(editingProduct.id, {
+      await dispatch(updateProduct(editingProduct._id, {
         title: values.title,
         image: values.image,
         description: values.description,
@@ -169,7 +169,7 @@ function Products() {
           {!loading && products.length > 0 && (
             <Row>
               {products.map((product) => (
-                <Col key={product.id} md={6} lg={4} xl={3} className="mb-4">
+                <Col key={product._id} md={6} lg={4} xl={3} className="mb-4">
                   <ProductCard
                     product={product}
                     onEdit={handleEditProduct}
