@@ -70,7 +70,7 @@ const productReducer = (state = initialState, action) => {
         ...state,
         isUpdating: false,
         products: state.products.map(product =>
-          product.id === action.payload.id ? action.payload : product
+          product._id === action.payload._id ? action.payload : product
         ),
         error: null
       };
@@ -94,7 +94,7 @@ const productReducer = (state = initialState, action) => {
       return {
         ...state,
         isDeleting: false,
-        products: state.products.filter(product => product.id !== action.payload),
+        products: state.products.filter(product => product._id !== action.payload),
         error: null
       };
     
