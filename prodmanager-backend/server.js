@@ -1,10 +1,10 @@
-const express = require("express");
-const cors = require("cors");
-const mongoose = require("mongoose");
-const swaggerUi = require("swagger-ui-express");
-const swaggerJsdoc = require("swagger-jsdoc");
-const Product = require("./models/Product");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+const Product = require('./models/Product');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,20 +14,19 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("✅ Connected to MongoDB successfully");
-    // Seed some initial data if the collection is empty
-    seedInitialData();
-  })
-  .catch((error) => {
-    console.error("❌ MongoDB connection error:", error.message);
-    process.exit(1);
-  });
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log('✅ Connected to MongoDB successfully');
+  // Seed some initial data if the collection is empty
+  seedInitialData();
+})
+.catch((error) => {
+  console.error('❌ MongoDB connection error:', error.message);
+  process.exit(1);
+});
 
 // Seed initial data function
 const seedInitialData = async () => {
@@ -37,56 +36,53 @@ const seedInitialData = async () => {
       const initialProducts = [
         {
           title: "MacBook Pro",
-          image:
-            "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
+          image: "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
           description: "High-performance laptop for professionals",
-          price: 1999.99,
+          price: 1999.99
         },
         {
           title: "iPhone 15",
-          image:
-            "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400",
+          image: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400",
           description: "Latest smartphone with advanced features",
-          price: 999.99,
+          price: 999.99
         },
         {
           title: "AirPods Pro",
-          image:
-            "https://images.unsplash.com/photo-1606220838315-056192d5e927?w=400",
+          image: "https://images.unsplash.com/photo-1606220838315-056192d5e927?w=400",
           description: "Wireless earbuds with noise cancellation",
-          price: 249.99,
-        },
+          price: 249.99
+        }
       ];
-
+      
       await Product.insertMany(initialProducts);
-      console.log("📦 Initial products seeded successfully");
+      console.log('📦 Initial products seeded successfully');
     }
   } catch (error) {
-    console.error("❌ Error seeding initial data:", error.message);
+    console.error('❌ Error seeding initial data:', error.message);
   }
 };
 
 // Swagger configuration
 const swaggerOptions = {
   definition: {
-    openapi: "3.0.0",
+    openapi: '3.0.0',
     info: {
-      title: "ProdManager API",
-      version: "1.0.0",
-      description: "Product Management API for MERN stack application",
+      title: 'ProdManager API',
+      version: '1.0.0',
+      description: 'Product Management API for MERN stack application',
     },
     servers: [
       {
         url: `http://localhost:${PORT}`,
-        description: "Development server",
+        description: 'Development server',
       },
     ],
   },
-  apis: ["./server.js"], // Path to the API docs
+  apis: ['./server.js'], // Path to the API docs
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
@@ -149,21 +145,21 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *               items:
  *                 $ref: '#/components/schemas/Product'
  */
-app.get("/api/products", async (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       data: products,
-      message: "Products fetched successfully",
-      count: products.length,
+      message: 'Products fetched successfully',
+      count: products.length
     });
   } catch (error) {
-    console.error("Error fetching products:", error);
+    console.error('Error fetching products:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching products",
-      error: error.message,
+      message: 'Server error while fetching products',
+      error: error.message
     });
   }
 });
@@ -191,38 +187,38 @@ app.get("/api/products", async (req, res) => {
  *       404:
  *         description: The product was not found
  */
-app.get("/api/products/:id", async (req, res) => {
+app.get('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
+    
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid product ID format",
+        message: 'Invalid product ID format'
       });
     }
-
+    
     const product = await Product.findById(id);
-
+    
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found'
       });
     }
-
+    
     res.status(200).json({
       success: true,
       data: product,
-      message: "Product fetched successfully",
+      message: 'Product fetched successfully'
     });
   } catch (error) {
-    console.error("Error fetching product:", error);
+    console.error('Error fetching product:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while fetching product",
-      error: error.message,
+      message: 'Server error while fetching product',
+      error: error.message
     });
   }
 });
@@ -263,51 +259,49 @@ app.get("/api/products/:id", async (req, res) => {
  *       400:
  *         description: Bad request
  */
-app.post("/api/products", async (req, res) => {
+app.post('/api/products', async (req, res) => {
   try {
     const { title, image, description, price } = req.body;
-
+    
     // Basic validation (Mongoose will also validate)
     if (!title || !image || !description || price === undefined) {
       return res.status(400).json({
         success: false,
-        message: "All fields (title, image, description, price) are required",
+        message: 'All fields (title, image, description, price) are required'
       });
     }
-
+    
     const newProduct = new Product({
       title,
       image,
       description,
-      price: parseFloat(price),
+      price: parseFloat(price)
     });
-
+    
     const savedProduct = await newProduct.save();
-
+    
     res.status(201).json({
       success: true,
       data: savedProduct,
-      message: "Product created successfully",
+      message: 'Product created successfully'
     });
   } catch (error) {
-    console.error("Error creating product:", error);
-
+    console.error('Error creating product:', error);
+    
     // Handle Mongoose validation errors
-    if (error.name === "ValidationError") {
-      const validationErrors = Object.values(error.errors).map(
-        (err) => err.message
-      );
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: "Validation error",
-        errors: validationErrors,
+        message: 'Validation error',
+        errors: validationErrors
       });
     }
-
+    
     res.status(500).json({
       success: false,
-      message: "Server error while creating product",
-      error: error.message,
+      message: 'Server error while creating product',
+      error: error.message
     });
   }
 });
@@ -352,72 +346,70 @@ app.post("/api/products", async (req, res) => {
  *       400:
  *         description: Bad request
  */
-app.put("/api/products/:id", async (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, image, description, price } = req.body;
-
+    
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid product ID format",
+        message: 'Invalid product ID format'
       });
     }
-
+    
     // Basic validation
     if (!title || !image || !description || price === undefined) {
       return res.status(400).json({
         success: false,
-        message: "All fields (title, image, description, price) are required",
+        message: 'All fields (title, image, description, price) are required'
       });
     }
-
+    
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
       {
         title,
         image,
         description,
-        price: parseFloat(price),
+        price: parseFloat(price)
       },
       {
         new: true, // Return the updated document
-        runValidators: true, // Run schema validators
+        runValidators: true // Run schema validators
       }
     );
-
+    
     if (!updatedProduct) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found'
       });
     }
-
+    
     res.status(200).json({
       success: true,
       data: updatedProduct,
-      message: "Product updated successfully",
+      message: 'Product updated successfully'
     });
   } catch (error) {
-    console.error("Error updating product:", error);
-
+    console.error('Error updating product:', error);
+    
     // Handle Mongoose validation errors
-    if (error.name === "ValidationError") {
-      const validationErrors = Object.values(error.errors).map(
-        (err) => err.message
-      );
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: "Validation error",
-        errors: validationErrors,
+        message: 'Validation error',
+        errors: validationErrors
       });
     }
-
+    
     res.status(500).json({
       success: false,
-      message: "Server error while updating product",
-      error: error.message,
+      message: 'Server error while updating product',
+      error: error.message
     });
   }
 });
@@ -441,38 +433,38 @@ app.put("/api/products/:id", async (req, res) => {
  *       404:
  *         description: The product was not found
  */
-app.delete("/api/products/:id", async (req, res) => {
+app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
+    
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid product ID format",
+        message: 'Invalid product ID format'
       });
     }
-
+    
     const deletedProduct = await Product.findByIdAndDelete(id);
-
+    
     if (!deletedProduct) {
       return res.status(404).json({
         success: false,
-        message: "Product not found",
+        message: 'Product not found'
       });
     }
-
+    
     res.status(200).json({
       success: true,
       data: deletedProduct,
-      message: "Product deleted successfully",
+      message: 'Product deleted successfully'
     });
   } catch (error) {
-    console.error("Error deleting product:", error);
+    console.error('Error deleting product:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while deleting product",
-      error: error.message,
+      message: 'Server error while deleting product',
+      error: error.message
     });
   }
 });
@@ -498,38 +490,37 @@ app.delete("/api/products/:id", async (req, res) => {
  *                 timestamp:
  *                   type: string
  */
-app.get("/api/ping", (req, res) => {
+app.get('/api/ping', (req, res) => {
   res.status(200).json({
     success: true,
-    message: "pong",
-    timestamp: new Date().toISOString(),
-  });
+    message: 'pong',
+    timestamp: new Date().toISOString()
+  }); 
 });
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: "ProdManager API is running!",
+    message: 'ProdManager API is running!',
     timestamp: new Date().toISOString(),
-    database:
-      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 
 // 404 handler
-app.use("*", (req, res) => {
+app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: "API endpoint not found",
+    message: 'API endpoint not found'
   });
 });
 
 // Graceful shutdown
-process.on("SIGINT", async () => {
-  console.log("\n🛑 Received SIGINT. Shutting down gracefully...");
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
   await mongoose.connection.close();
-  console.log("📦 MongoDB connection closed.");
+  console.log('📦 MongoDB connection closed.');
   process.exit(0);
 });
 
@@ -539,4 +530,4 @@ app.listen(PORT, () => {
   console.log(`📖 Swagger Documentation: http://localhost:${PORT}/api-docs`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`📡 Ping Check: http://localhost:${PORT}/api/ping`);
-});
+}); 
