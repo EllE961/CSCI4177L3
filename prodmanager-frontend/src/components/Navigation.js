@@ -25,6 +25,10 @@ function Navigation() {
               <i className="bi bi-envelope me-1"></i>
               Contact
             </Nav.Link>
+            <Nav.Link as={Link} to="/register">
+              <i className="bi bi-person-plus me-1"></i>
+              Register
+            </Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Container>
