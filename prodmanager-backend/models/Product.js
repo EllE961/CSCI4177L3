@@ -24,7 +24,7 @@ const productSchema = new mongoose.Schema({
     trim: true
   }
 }, {
-  timestamps: true // This adds createdAt and updatedAt fields
+  timestamps: true
 });
 
 // Create and export the model
