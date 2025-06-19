@@ -7,10 +7,7 @@ const {
   updateProduct,
   deleteProduct
 } = require('../controllers/productController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-// Apply auth middleware to all product routes
-router.use(authMiddleware);
 
 // GET /api/products - Get all products with pagination, sorting, and search
 router.get('/', getProducts);
