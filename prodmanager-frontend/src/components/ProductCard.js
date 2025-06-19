@@ -8,7 +8,7 @@ const ProductCard = ({
   isDeleting = false,
   deletingId = null 
 }) => {
-  const isCurrentlyDeleting = isDeleting && deletingId === product._id;
+  const isCurrentlyDeleting = isDeleting && deletingId === product.id;
 
   return (
     <Card className="h-100 shadow-sm">
@@ -60,7 +60,7 @@ const ProductCard = ({
             <Button
               variant="outline-danger"
               size="sm"
-              onClick={() => onDelete(product._id)}
+              onClick={() => onDelete(product.id)}
               disabled={isCurrentlyDeleting}
             >
               {isCurrentlyDeleting ? (
@@ -88,7 +88,7 @@ const ProductCard = ({
       {/* Product ID Badge for reference */}
       <div className="position-absolute top-0 start-0 m-2">
         <Badge bg="secondary" className="small">
-          ID: {product._id}
+          ID: {product.id}
         </Badge>
       </div>
     </Card>
