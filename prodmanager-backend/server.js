@@ -1,10 +1,13 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
-const Product = require('./models/Product');
+const { sequelize } = require('./models');
 require('dotenv').config();
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,25 +16,30 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB successfully');
-  // Seed some initial data if the collection is empty
-  seedInitialData();
-})
-.catch((error) => {
-  console.error('❌ MongoDB connection error:', error.message);
-  process.exit(1);
-});
+// Database connection and sync
+const connectDB = async () => {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ Connected to PostgreSQL successfully');
+    
+    // Sync database (create tables)
+    await sequelize.sync({ alter: true });
+    console.log('✅ Database synchronized');
+    
+    // Seed initial data if needed
+    await seedInitialData();
+  } catch (error) {
+    console.error('❌ Database connection error:', error.message);
+    process.exit(1);
+  }
+};
 
 // Seed initial data function
 const seedInitialData = async () => {
   try {
-    const count = await Product.countDocuments();
+    const { Product } = require('./models');
+    const count = await Product.count();
+    
     if (count === 0) {
       const initialProducts = [
         {
@@ -54,7 +62,7 @@ const seedInitialData = async () => {
         }
       ];
       
-      await Product.insertMany(initialProducts);
+      await Product.bulkCreate(initialProducts);
       console.log('📦 Initial products seeded successfully');
     }
   } catch (error) {
@@ -69,7 +77,7 @@ const swaggerOptions = {
     info: {
       title: 'ProdManager API',
       version: '1.0.0',
-      description: 'Product Management API for MERN stack application',
+      description: 'Product Management API with JWT Authentication using PostgreSQL and Sequelize',
     },
     servers: [
       {
@@ -77,8 +85,163 @@ const swaggerOptions = {
         description: 'Development server',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+      schemas: {
+        User: {
+          type: 'object',
+          required: ['name', 'email', 'password'],
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'The auto-generated id of the user',
+            },
+            name: {
+              type: 'string',
+              description: 'The user name',
+              minLength: 2,
+              maxLength: 50,
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'The user email',
+            },
+            password: {
+              type: 'string',
+              description: 'The user password',
+              minLength: 6,
+            },
+          },
+          example: {
+            id: 1,
+            name: 'John Doe',
+            email: 'john@example.com',
+            password: 'password123',
+          },
+        },
+        Product: {
+          type: 'object',
+          required: ['title', 'description', 'price', 'image'],
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'The auto-generated id of the product',
+            },
+            title: {
+              type: 'string',
+              description: 'The product title',
+              maxLength: 100,
+            },
+            description: {
+              type: 'string',
+              description: 'The product description',
+              maxLength: 500,
+            },
+            price: {
+              type: 'number',
+              format: 'float',
+              description: 'The product price',
+              minimum: 0,
+            },
+            image: {
+              type: 'string',
+              format: 'uri',
+              description: 'The product image URL',
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'The date the product was created',
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'The date the product was last updated',
+            },
+          },
+          example: {
+            id: 1,
+            title: 'MacBook Pro',
+            description: 'High-performance laptop',
+            price: 1999.99,
+            image: 'https://example.com/image.jpg',
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+          },
+        },
+        LoginRequest: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: {
+              type: 'string',
+              format: 'email',
+            },
+            password: {
+              type: 'string',
+            },
+          },
+        },
+        RegisterRequest: {
+          type: 'object',
+          required: ['name', 'email', 'password'],
+          properties: {
+            name: {
+              type: 'string',
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+            },
+            password: {
+              type: 'string',
+            },
+          },
+        },
+        AuthResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+            },
+            message: {
+              type: 'string',
+            },
+            data: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'integer',
+                },
+                name: {
+                  type: 'string',
+                },
+                email: {
+                  type: 'string',
+                },
+                token: {
+                  type: 'string',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: ['./server.js'], // Path to the API docs
+  apis: ['./server.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
@@ -86,83 +249,128 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Product:
- *       type: object
- *       required:
- *         - title
- *         - image
- *         - description
- *         - price
- *       properties:
- *         _id:
- *           type: string
- *           description: The auto-generated id of the product
- *         title:
- *           type: string
- *           description: The product title
- *         image:
- *           type: string
- *           description: The product image URL
- *         description:
- *           type: string
- *           description: The product description
- *         price:
- *           type: number
- *           description: The product price
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: The date the product was created
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           description: The date the product was last updated
- *       example:
- *         _id: "507f1f77bcf86cd799439011"
- *         title: "MacBook Pro"
- *         image: "https://example.com/image.jpg"
- *         description: "High-performance laptop"
- *         price: 1999.99
- *         createdAt: "2023-01-01T00:00:00.000Z"
- *         updatedAt: "2023-01-01T00:00:00.000Z"
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterRequest'
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       400:
+ *         description: Bad request
+ */
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: Invalid credentials
  */
 
 /**
  * @swagger
  * /api/products:
  *   get:
- *     summary: Returns the list of all products
+ *     summary: Get all products with pagination, sorting, and search
  *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number (default 1)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page (default 10)
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *         description: Sort field (default createdAt)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *         description: Sort order (default DESC)
+ *       - in: query
+ *         name: keyword
+ *         schema:
+ *           type: string
+ *         description: Search keyword for title and description
  *     responses:
  *       200:
- *         description: The list of products
+ *         description: Products fetched successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *   post:
+ *     summary: Create a new product
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, description, price, image]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               image:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Product created successfully
+ *       400:
+ *         description: Bad request
  */
-app.get('/api/products', async (req, res) => {
-  try {
-    const products = await Product.find().sort({ createdAt: -1 });
-    res.status(200).json({
-      success: true,
-      data: products,
-      message: 'Products fetched successfully',
-      count: products.length
-    });
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching products',
-      error: error.message
-    });
-  }
-});
 
 /**
  * @swagger
@@ -173,152 +381,25 @@ app.get('/api/products', async (req, res) => {
  *     parameters:
  *       - in: path
  *         name: id
- *         schema:
- *           type: string
  *         required: true
- *         description: The product id
+ *         schema:
+ *           type: integer
+ *         description: Product id
  *     responses:
  *       200:
- *         description: The product by id
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Product'
+ *         description: Product fetched successfully
  *       404:
- *         description: The product was not found
- */
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid product ID format'
-      });
-    }
-    
-    const product = await Product.findById(id);
-    
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: product,
-      message: 'Product fetched successfully'
-    });
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching product',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/products:
- *   post:
- *     summary: Create a new product
- *     tags: [Products]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - title
- *               - image
- *               - description
- *               - price
- *             properties:
- *               title:
- *                 type: string
- *               image:
- *                 type: string
- *               description:
- *                 type: string
- *               price:
- *                 type: number
- *     responses:
- *       201:
- *         description: The product was successfully created
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Product'
- *       400:
- *         description: Bad request
- */
-app.post('/api/products', async (req, res) => {
-  try {
-    const { title, image, description, price } = req.body;
-    
-    // Basic validation (Mongoose will also validate)
-    if (!title || !image || !description || price === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields (title, image, description, price) are required'
-      });
-    }
-    
-    const newProduct = new Product({
-      title,
-      image,
-      description,
-      price: parseFloat(price)
-    });
-    
-    const savedProduct = await newProduct.save();
-    
-    res.status(201).json({
-      success: true,
-      data: savedProduct,
-      message: 'Product created successfully'
-    });
-  } catch (error) {
-    console.error('Error creating product:', error);
-    
-    // Handle Mongoose validation errors
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: validationErrors
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating product',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/products/{id}:
+ *         description: Product not found
  *   put:
  *     summary: Update a product by id
  *     tags: [Products]
  *     parameters:
  *       - in: path
  *         name: id
- *         schema:
- *           type: string
  *         required: true
- *         description: The product id
+ *         schema:
+ *           type: integer
+ *         description: Product id
  *     requestBody:
  *       required: true
  *       content:
@@ -328,183 +409,64 @@ app.post('/api/products', async (req, res) => {
  *             properties:
  *               title:
  *                 type: string
- *               image:
- *                 type: string
  *               description:
  *                 type: string
  *               price:
  *                 type: number
+ *               image:
+ *                 type: string
  *     responses:
  *       200:
- *         description: The product was updated
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Product'
+ *         description: Product updated successfully
  *       404:
- *         description: The product was not found
- *       400:
- *         description: Bad request
- */
-app.put('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, image, description, price } = req.body;
-    
-    // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid product ID format'
-      });
-    }
-    
-    // Basic validation
-    if (!title || !image || !description || price === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields (title, image, description, price) are required'
-      });
-    }
-    
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
-      {
-        title,
-        image,
-        description,
-        price: parseFloat(price)
-      },
-      {
-        new: true, // Return the updated document
-        runValidators: true // Run schema validators
-      }
-    );
-    
-    if (!updatedProduct) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: updatedProduct,
-      message: 'Product updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating product:', error);
-    
-    // Handle Mongoose validation errors
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: validationErrors
-      });
-    }
-    
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating product',
-      error: error.message
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/products/{id}:
+ *         description: Product not found
  *   delete:
- *     summary: Remove a product by id
+ *     summary: Delete a product by id
  *     tags: [Products]
  *     parameters:
  *       - in: path
  *         name: id
- *         schema:
- *           type: string
  *         required: true
- *         description: The product id
+ *         schema:
+ *           type: integer
+ *         description: Product id
  *     responses:
  *       200:
- *         description: The product was deleted
+ *         description: Product deleted successfully
  *       404:
- *         description: The product was not found
+ *         description: Product not found
  */
-app.delete('/api/products/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid product ID format'
-      });
-    }
-    
-    const deletedProduct = await Product.findByIdAndDelete(id);
-    
-    if (!deletedProduct) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: deletedProduct,
-      message: 'Product deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while deleting product',
-      error: error.message
-    });
-  }
-});
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
 
 /**
  * @swagger
  * /api/ping:
  *   get:
- *     summary: Health check endpoint that returns "pong"
+ *     summary: Health check endpoint
  *     tags: [Health]
+ *     security: []
  *     responses:
  *       200:
  *         description: Returns pong
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 timestamp:
- *                   type: string
  */
 app.get('/api/ping', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'pong',
-    timestamp: new Date().toISOString()
-  }); 
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'ProdManager API is running!',
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
   });
 });
 
@@ -512,22 +474,17 @@ app.get('/api/health', (req, res) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'API endpoint not found'
+    message: 'Route not found',
   });
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT. Shutting down gracefully...');
-  await mongoose.connection.close();
-  console.log('📦 MongoDB connection closed.');
-  process.exit(0);
-});
-
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 ProdManager API running on port ${PORT}`);
-  console.log(`📖 Swagger Documentation: http://localhost:${PORT}/api-docs`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`📡 Ping Check: http://localhost:${PORT}/api/ping`);
-}); 
+const startServer = async () => {
+  await connectDB();
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+  });
+};
+
+startServer(); 
