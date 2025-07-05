@@ -347,7 +347,45 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Root route for health check
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'ProdManager API is running successfully! 🚀',
+    data: {
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      documentation: '/api-docs',
+      endpoints: {
+        auth: '/api/auth',
+        products: '/api/products'
+      }
+    }
+  });
+});
+
 /**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: API Health Check
+ *     tags: [Health]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: API is running successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *
  * @swagger
  * /api/auth/register:
  *   post:
