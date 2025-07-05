@@ -5,22 +5,14 @@ const { User } = require('../models');
 // Generate JWT token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '1d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 };
 
 // Register new user
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-
-    // Basic validation
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide name, email, and password'
-      });
-    }
+    const { name, email, password, role = 'user' } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
@@ -32,14 +24,15 @@ const register = async (req, res) => {
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create user
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
+      role
     });
 
     // Generate token
@@ -52,6 +45,7 @@ const register = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
         token
       }
     });
@@ -79,7 +73,7 @@ const register = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during registration',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -89,20 +83,20 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Basic validation
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password'
-      });
-    }
-
     // Check if user exists
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
       });
     }
 
@@ -125,6 +119,7 @@ const login = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
         token
       }
     });
@@ -133,7 +128,7 @@ const login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during login',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

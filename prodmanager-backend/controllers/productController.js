@@ -51,11 +51,9 @@ const getProducts = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching products',
-      error: error.message
-    });
+    
+    // Pass error to error handler middleware
+    throw error;
   }
 };
 
@@ -80,11 +78,9 @@ const getProduct = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching product',
-      error: error.message
-    });
+    
+    // Pass error to error handler middleware
+    throw error;
   }
 };
 
@@ -92,14 +88,6 @@ const getProduct = async (req, res) => {
 const createProduct = async (req, res) => {
   try {
     const { title, description, price, image } = req.body;
-
-    // Basic validation
-    if (!title || !description || price === undefined || !image) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields (title, description, price, image) are required'
-      });
-    }
 
     const product = await Product.create({
       title,
@@ -115,22 +103,9 @@ const createProduct = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating product:', error);
-
-    // Handle Sequelize validation errors
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: validationErrors
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating product',
-      error: error.message
-    });
+    
+    // Pass error to error handler middleware
+    throw error;
   }
 };
 
@@ -139,14 +114,6 @@ const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, price, image } = req.body;
-
-    // Basic validation
-    if (!title || !description || price === undefined || !image) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields (title, description, price, image) are required'
-      });
-    }
 
     const product = await Product.findByPk(id);
 
@@ -157,13 +124,14 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Update product
-    await product.update({
-      title,
-      description,
-      price: parseFloat(price),
-      image
-    });
+    // Update product with provided fields
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = parseFloat(price);
+    if (image !== undefined) updateData.image = image;
+
+    await product.update(updateData);
 
     res.status(200).json({
       success: true,
@@ -172,22 +140,9 @@ const updateProduct = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating product:', error);
-
-    // Handle Sequelize validation errors
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: validationErrors
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating product',
-      error: error.message
-    });
+    
+    // Pass error to error handler middleware
+    throw error;
   }
 };
 
@@ -214,11 +169,9 @@ const deleteProduct = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while deleting product',
-      error: error.message
-    });
+    
+    // Pass error to error handler middleware
+    throw error;
   }
 };
 

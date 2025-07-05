@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const { sequelize } = require('./models');
@@ -9,12 +11,48 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 
+// Import middleware
+const { errorHandler, notFound } = require('./middleware/errorMiddleware');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.',
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true,
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Database connection and sync
 const connectDB = async () => {
@@ -75,14 +113,20 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'ProdManager API',
-      version: '1.0.0',
-      description: 'Product Management API with JWT Authentication using PostgreSQL and Sequelize',
+      title: process.env.SWAGGER_TITLE || 'ProdManager API',
+      version: process.env.SWAGGER_VERSION || '1.0.0',
+      description: process.env.SWAGGER_DESCRIPTION || 'Product Management API with JWT Authentication, RBAC, and comprehensive validation',
+      contact: {
+        name: 'API Support',
+        email: 'support@prodmanager.com',
+      },
     },
     servers: [
       {
-        url: `http://localhost:${PORT}`,
-        description: 'Development server',
+        url: process.env.NODE_ENV === 'production' 
+          ? `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'your-app-name.onrender.com'}` 
+          : `http://localhost:${PORT}`,
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
       },
     ],
     components: {
@@ -118,12 +162,25 @@ const swaggerOptions = {
               description: 'The user password',
               minLength: 6,
             },
+            role: {
+              type: 'string',
+              enum: ['user', 'admin'],
+              description: 'The user role',
+              default: 'user',
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Whether the user account is active',
+              default: true,
+            },
           },
           example: {
             id: 1,
             name: 'John Doe',
             email: 'john@example.com',
-            password: 'password123',
+            password: 'SecurePass123',
+            role: 'user',
+            isActive: true,
           },
         },
         Product: {
@@ -195,6 +252,8 @@ const swaggerOptions = {
           properties: {
             name: {
               type: 'string',
+              minLength: 2,
+              maxLength: 50,
             },
             email: {
               type: 'string',
@@ -202,6 +261,13 @@ const swaggerOptions = {
             },
             password: {
               type: 'string',
+              minLength: 6,
+              pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)',
+            },
+            role: {
+              type: 'string',
+              enum: ['user', 'admin'],
+              default: 'user',
             },
           },
         },
@@ -228,6 +294,40 @@ const swaggerOptions = {
                 },
                 token: {
                   type: 'string',
+                },
+                role: {
+                  type: 'string',
+                  enum: ['user', 'admin'],
+                },
+              },
+            },
+          },
+        },
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: false,
+            },
+            message: {
+              type: 'string',
+              example: 'Error message',
+            },
+            errors: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  field: {
+                    type: 'string',
+                  },
+                  message: {
+                    type: 'string',
+                  },
+                  value: {
+                    type: 'string',
+                  },
                 },
               },
             },
@@ -301,21 +401,26 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *   get:
  *     summary: Get all products with pagination, sorting, and search
  *     tags: [Products]
+ *     security: []
  *     parameters:
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: Page number (default 1)
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
  *         description: Items per page (default 10)
  *       - in: query
  *         name: sort
  *         schema:
  *           type: string
+ *           enum: [id, title, price, createdAt, updatedAt]
  *         description: Sort field (default createdAt)
  *       - in: query
  *         name: order
@@ -327,6 +432,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *         name: keyword
  *         schema:
  *           type: string
+ *           maxLength: 50
  *         description: Search keyword for title and description
  *     responses:
  *       200:
@@ -346,9 +452,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *                   type: object
  *                 message:
  *                   type: string
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *   post:
- *     summary: Create a new product
+ *     summary: Create a new product (Authenticated Users Only)
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -359,17 +473,42 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *             properties:
  *               title:
  *                 type: string
+ *                 maxLength: 100
  *               description:
  *                 type: string
+ *                 maxLength: 500
  *               price:
  *                 type: number
+ *                 minimum: 0
  *               image:
  *                 type: string
+ *                 format: uri
  *     responses:
  *       201:
  *         description: Product created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *                 message:
+ *                   type: string
  *       400:
  *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 
 /**
@@ -378,27 +517,53 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *   get:
  *     summary: Get a product by id
  *     tags: [Products]
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: Product id
  *     responses:
  *       200:
  *         description: Product fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
  *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *   put:
- *     summary: Update a product by id
+ *     summary: Update a product by id (Authenticated Users Only)
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: Product id
  *     requestBody:
  *       required: true
@@ -409,32 +574,99 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *             properties:
  *               title:
  *                 type: string
+ *                 maxLength: 100
  *               description:
  *                 type: string
+ *                 maxLength: 500
  *               price:
  *                 type: number
+ *                 minimum: 0
  *               image:
  *                 type: string
+ *                 format: uri
  *     responses:
  *       200:
  *         description: Product updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
  *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *   delete:
- *     summary: Delete a product by id
+ *     summary: Delete a product by id (Admin Only)
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
+ *           minimum: 1
  *         description: Product id
  *     responses:
  *       200:
  *         description: Product deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden (Admin only)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
  *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 
 // Routes
@@ -457,26 +689,15 @@ app.get('/api/ping', (req, res) => {
     success: true,
     message: 'pong',
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
+// 404 handler (must be before error handler)
+app.use('*', notFound);
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-  });
-});
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Start server
 const startServer = async () => {

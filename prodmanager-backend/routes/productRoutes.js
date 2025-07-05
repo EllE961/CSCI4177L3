@@ -7,21 +7,32 @@ const {
   updateProduct,
   deleteProduct
 } = require('../controllers/productController');
+const { 
+  authMiddleware, 
+  requireUserOrAdmin, 
+  requireAdmin 
+} = require('../middleware/authMiddleware');
+const { 
+  validateProduct, 
+  validateProductUpdate, 
+  validateId, 
+  validateProductQuery 
+} = require('../middleware/validationMiddleware');
+const { asyncHandler } = require('../middleware/errorMiddleware');
 
+// GET /api/products - Get all products with pagination, sorting, and search (public)
+router.get('/', validateProductQuery, asyncHandler(getProducts));
 
-// GET /api/products - Get all products with pagination, sorting, and search
-router.get('/', getProducts);
+// GET /api/products/:id - Get single product (public)
+router.get('/:id', validateId, asyncHandler(getProduct));
 
-// GET /api/products/:id - Get single product
-router.get('/:id', getProduct);
+// POST /api/products - Create new product (authenticated users only)
+router.post('/', authMiddleware, requireUserOrAdmin, validateProduct, asyncHandler(createProduct));
 
-// POST /api/products - Create new product
-router.post('/', createProduct);
+// PUT /api/products/:id - Update product (authenticated users only)
+router.put('/:id', authMiddleware, requireUserOrAdmin, validateId, validateProductUpdate, asyncHandler(updateProduct));
 
-// PUT /api/products/:id - Update product
-router.put('/:id', updateProduct);
-
-// DELETE /api/products/:id - Delete product
-router.delete('/:id', deleteProduct);
+// DELETE /api/products/:id - Delete product (admin only)
+router.delete('/:id', authMiddleware, requireAdmin, validateId, asyncHandler(deleteProduct));
 
 module.exports = router; 
