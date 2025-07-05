@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Row, Col, Button, Card, Spinner, Alert } from 'react-bootstrap';
+import { toast } from 'react-toastify';
 
 // Redux Actions
 import { 
@@ -13,6 +13,7 @@ import {
 // Components
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 function Products() {
   const dispatch = useDispatch();
@@ -112,103 +113,103 @@ function Products() {
   };
 
   return (
-    <Container className="mt-5">
-      <Row>
-        <Col>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h1>Product Management</h1>
-            <div className="d-flex gap-2">
-              <Button 
-                variant="outline-secondary" 
+    <div className="products-page">
+      <div className="products-header">
+        <div className="container">
+          <div className="header-content">
+            <div className="header-text">
+              <h1>Products</h1>
+              <p>Manage your product inventory</p>
+            </div>
+            <div className="header-actions">
+              <button 
+                className="btn btn-secondary"
                 onClick={handleRefresh}
                 disabled={loading}
               >
-                <i className="bi bi-arrow-clockwise"></i> Refresh
-              </Button>
-              <Button 
-                variant="primary" 
+                {loading ? '⟳' : '↻'} Refresh
+              </button>
+              <button 
+                className="btn btn-primary"
                 onClick={handleAddNew}
                 disabled={loading}
               >
-                <i className="bi bi-plus"></i> Add New Product
-              </Button>
+                + Add Product
+              </button>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Error Alert */}
+      <div className="products-content">
+        <div className="container">
+          {/* Error Message */}
           {error && (
-            <Alert variant="danger" dismissible onClose={() => window.location.reload()}>
-              <Alert.Heading>Error!</Alert.Heading>
-              <p>{error}</p>
-            </Alert>
-          )}
-
-          {/* Loading Spinner */}
-          {loading && (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="primary" />
-              <p className="mt-2">Loading products...</p>
+            <div className="error-banner">
+              <span>⚠️ {error}</span>
+              <button onClick={() => window.location.reload()}>Retry</button>
             </div>
           )}
 
-          {/* No Products Message */}
+          {/* Loading State */}
+          {loading && (
+            <div className="loading-state">
+              <LoadingSpinner />
+              <p>Loading products...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
           {!loading && products.length === 0 && !error && (
-            <Card className="text-center py-5">
-              <Card.Body>
-                <i className="bi bi-box-seam display-1 text-muted"></i>
-                <h3 className="mt-3 text-muted">No Products Found</h3>
-                <p className="text-muted">Start by adding your first product!</p>
-                <Button variant="primary" onClick={handleAddNew}>
-                  <i className="bi bi-plus"></i> Add First Product
-                </Button>
-              </Card.Body>
-            </Card>
+            <div className="empty-state">
+              <div className="empty-icon">📦</div>
+              <h3>No products yet</h3>
+              <p>Get started by adding your first product</p>
+              <button className="btn btn-primary" onClick={handleAddNew}>
+                + Add Your First Product
+              </button>
+            </div>
           )}
 
           {/* Products Grid */}
           {!loading && products.length > 0 && (
-            <Row>
-              {products.map((product) => (
-                <Col key={product.id} md={6} lg={4} xl={3} className="mb-4">
+            <>
+              <div className="products-grid">
+                {products.map((product) => (
                   <ProductCard
+                    key={product.id}
                     product={product}
                     onEdit={handleEditProduct}
                     onDelete={handleDeleteProduct}
                     isDeleting={isDeleting}
                     deletingId={deletingId}
                   />
-                </Col>
-              ))}
-            </Row>
-          )}
+                ))}
+              </div>
 
-          {/* Product Stats */}
-          {!loading && products.length > 0 && (
-            <Card className="mt-4 bg-light">
-              <Card.Body>
-                <Row className="text-center">
-                  <Col md={4}>
-                    <h5 className="text-primary">{products.length}</h5>
-                    <small className="text-muted">Total Products</small>
-                  </Col>
-                  <Col md={4}>
-                    <h5 className="text-success">
-                      ${products.reduce((sum, p) => sum + parseFloat(p.price), 0).toFixed(2)}
-                    </h5>
-                    <small className="text-muted">Total Value</small>
-                  </Col>
-                  <Col md={4}>
-                    <h5 className="text-info">
-                      ${products.length > 0 ? (products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length).toFixed(2) : '0.00'}
-                    </h5>
-                    <small className="text-muted">Average Price</small>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
+              {/* Stats */}
+              <div className="products-stats">
+                <div className="stat-item">
+                  <div className="stat-number">{products.length}</div>
+                  <div className="stat-label">Total Products</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-number">
+                    ${products.reduce((sum, p) => sum + parseFloat(p.price), 0).toFixed(2)}
+                  </div>
+                  <div className="stat-label">Total Value</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-number">
+                    ${products.length > 0 ? (products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length).toFixed(2) : '0.00'}
+                  </div>
+                  <div className="stat-label">Average Price</div>
+                </div>
+              </div>
+            </>
           )}
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* Product Modal */}
       <ProductModal
@@ -229,7 +230,7 @@ function Products() {
         modalTitle={editingProduct ? 'Edit Product' : 'Add New Product'}
         isLoading={isCreating || isUpdating}
       />
-    </Container>
+    </div>
   );
 }
 

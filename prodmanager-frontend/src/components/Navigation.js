@@ -12,11 +12,11 @@ function Navigation() {
   };
 
   return (
-    <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
+    <Navbar bg="white" variant="light" expand="lg" sticky="top" className="custom-navbar">
       <Container>
-        <Navbar.Brand as={Link} to="/">
-          <i className="bi bi-box-seam me-2"></i>
-          ProdManager
+        <Navbar.Brand as={Link} to="/" className="brand-logo-nav">
+          <span className="logo-icon-nav">P</span>
+          <span className="brand-text-nav">ProdManager</span>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
