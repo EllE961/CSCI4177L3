@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { authAPI } from '../utils/api';
 
-const RegisterForm = () => {
+const LoginForm = () => {
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    phone: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleChange = (e) => {
     setFormData({
@@ -25,27 +23,23 @@ const RegisterForm = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await authAPI.register({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password
-      });
+      const response = await authAPI.login(formData);
       
       if (response.data.success) {
-        toast.success('Registration successful! Please login.');
-        navigate('/login');
+        // Store token in localStorage
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data));
+        
+        toast.success(`Welcome back, ${response.data.data.name}!`);
+        
+        // Navigate to intended page or products
+        const from = location.state?.from?.pathname || '/products';
+        navigate(from, { replace: true });
       }
     } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+      console.error('Login error:', error);
+      toast.error(error.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -62,22 +56,9 @@ const RegisterForm = () => {
         </div>
         
         <div className="auth-content">
-          <h2 className="auth-title">Sign Up</h2>
+          <h2 className="auth-title">Login</h2>
           
           <form onSubmit={handleSubmit} className="auth-form">
-            <div className="form-group">
-              <label htmlFor="name">Fullname</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input
@@ -85,19 +66,6 @@ const RegisterForm = () => {
                 id="email"
                 name="email"
                 value={formData.email}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="phone">Phone</label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
                 onChange={handleChange}
                 required
                 disabled={isLoading}
@@ -117,31 +85,18 @@ const RegisterForm = () => {
               />
             </div>
             
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            
             <button 
               type="submit" 
               className="auth-button"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing up...' : 'Sign Up'}
+              {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
           
           <div className="auth-footer">
             <p>
-              Already have account? <Link to="/login">Login</Link>
+              Don't have an account? <Link to="/register">Sign up</Link>
             </p>
           </div>
         </div>
@@ -150,4 +105,4 @@ const RegisterForm = () => {
   );
 };
 
-export default RegisterForm; 
+export default LoginForm; 

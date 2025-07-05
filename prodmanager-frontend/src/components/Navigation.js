@@ -1,8 +1,16 @@
 import React from 'react';
-import { Navbar, Nav, Container } from 'react-bootstrap';
+import { Navbar, Nav, Container, NavDropdown } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { isAuthenticated, getUser, logout } from '../utils/api';
 
 function Navigation() {
+  const isLoggedIn = isAuthenticated();
+  const user = getUser();
+
+  const handleLogout = () => {
+    logout();
+  };
+
   return (
     <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
       <Container>
@@ -25,10 +33,49 @@ function Navigation() {
               <i className="bi bi-envelope me-1"></i>
               Contact
             </Nav.Link>
-            <Nav.Link as={Link} to="/register">
-              <i className="bi bi-person-plus me-1"></i>
-              Register
-            </Nav.Link>
+            
+            {!isLoggedIn ? (
+              <>
+                <Nav.Link as={Link} to="/login">
+                  <i className="bi bi-box-arrow-in-right me-1"></i>
+                  Login
+                </Nav.Link>
+                <Nav.Link as={Link} to="/register">
+                  <i className="bi bi-person-plus me-1"></i>
+                  Register
+                </Nav.Link>
+              </>
+            ) : (
+              <NavDropdown 
+                title={
+                  <>
+                    <i className="bi bi-person-circle me-1"></i>
+                    {user?.name || 'User'}
+                  </>
+                } 
+                id="user-nav-dropdown"
+              >
+                <NavDropdown.Item>
+                  <i className="bi bi-person me-2"></i>
+                  Profile
+                </NavDropdown.Item>
+                <NavDropdown.Item>
+                  <i className="bi bi-gear me-2"></i>
+                  Settings
+                </NavDropdown.Item>
+                {user?.role === 'admin' && (
+                  <NavDropdown.Item>
+                    <i className="bi bi-shield-check me-2"></i>
+                    Admin Panel
+                  </NavDropdown.Item>
+                )}
+                <NavDropdown.Divider />
+                <NavDropdown.Item onClick={handleLogout}>
+                  <i className="bi bi-box-arrow-right me-2"></i>
+                  Logout
+                </NavDropdown.Item>
+              </NavDropdown>
+            )}
           </Nav>
         </Navbar.Collapse>
       </Container>
