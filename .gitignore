@@ -130,3 +130,8 @@ dist
 .pnp.*
 
 build/
+
+# editor
+.cursorignore
+.vscode/
+.idea/

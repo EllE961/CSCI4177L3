@@ -1,8 +1,6 @@
-import axios from 'axios';
+import api from '../utils/api';
 import { toast } from 'react-toastify';
 import * as actionTypes from './actionTypes';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // Create Product Actions
 export const createProductRequest = () => ({
@@ -23,7 +21,7 @@ export const createProduct = (productData) => {
   return async (dispatch) => {
     dispatch(createProductRequest());
     try {
-      const response = await axios.post(`${API_URL}/products`, productData);
+      const response = await api.post(`/products`, productData);
       dispatch(createProductSuccess(response.data.data));
       toast.success(response.data.message || 'Product created successfully!');
       return response.data;
@@ -55,7 +53,7 @@ export const readProducts = () => {
   return async (dispatch) => {
     dispatch(readProductsRequest());
     try {
-      const response = await axios.get(`${API_URL}/products`);
+      const response = await api.get(`/products`);
       dispatch(readProductsSuccess(response.data.data));
       return response.data;
     } catch (error) {
@@ -85,7 +83,7 @@ export const updateProduct = (id, productData) => {
   return async (dispatch) => {
     dispatch(updateProductRequest());
     try {
-      const response = await axios.put(`${API_URL}/products/${id}`, productData);
+      const response = await api.put(`/products/${id}`, productData);
       dispatch(updateProductSuccess(response.data.data));
       toast.success(response.data.message || 'Product updated successfully!');
       return response.data;
@@ -117,7 +115,7 @@ export const deleteProduct = (id) => {
   return async (dispatch) => {
     dispatch(deleteProductRequest());
     try {
-      const response = await axios.delete(`${API_URL}/products/${id}`);
+      const response = await api.delete(`/products/${id}`);
       dispatch(deleteProductSuccess(id));
       toast.success(response.data.message || 'Product deleted successfully!');
       return response.data;
